@@ -1,0 +1,19 @@
+# LLM Oracle - Production Grade RAG System
+
+# Google Cloud (use aiplatform instead of genai to avoid websockets conflict)
+google-cloud-aiplatform>=1.70.0
+google-cloud-discoveryengine>=0.11.0
+
+# Claude via Vertex AI
+anthropic
+
+# LangGraph
+langgraph>=0.2.0
+pydantic>=2.0.0
+
+# UI
+gradio>=4.0.0
+
+# Utilities
+requests>=2.31.0
+typing-extensions>=4.0.0
