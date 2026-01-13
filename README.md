@@ -486,3 +486,90 @@ t2v-transformers:
 | Custom metadata filters | Limited | ✅ Full support |
 | Aggregations | ❌ | ✅ |
 | Multi-tenancy | ✅ | ✅ |
+
+---
+
+## 🔮 Future Work (Planned Enhancements)
+
+The following features are planned for future releases to improve retrieval quality and temporal awareness:
+
+### 1. Enhanced Temporal Metadata Schema
+
+Extend the Weaviate schema with richer chronological fields:
+- `report_date` (date) - Critical for time filtering
+- `report_period` (string) - "Q1 2025", "March 2025"  
+- `created_at` / `updated_at` timestamps
+
+### 2. Two-Stage Retrieval Pipeline
+
+Upgrade from single-stage retrieval to a proven two-stage architecture:
+- **Stage 1**: Hybrid search (BM25 + Dense vectors) → Top 100 candidates
+- **Stage 2**: Cross-encoder reranking → Top 20 final results
+
+This significantly improves precision over single-stage semantic search.
+
+### 3. Temporal Boosting with Exponential Decay
+
+Implement recency boosting using an exponential decay formula:
+
+```
+temporal_score = 0.5^(days_old / half_life)
+final_score = (1 - α) * relevance_score + α * temporal_score
+```
+
+Where `α` (default 0.3) controls how much weight recency gets. This ensures recent documents are ranked higher while still respecting semantic relevance.
+
+### 4. Context Assembly with Neighboring Chunks
+
+Fetch neighboring chunks (±1) when retrieving results to prevent broken context chains. If chunk 5/10 is retrieved, also fetch chunks 4 and 6 to maintain attribution and narrative flow.
+
+### 5. Lost-in-Middle Fix
+
+Reorder retrieved chunks so the most relevant are at positions 0 (start) and -1 (end) of the context window. Research shows LLMs pay more attention to the beginning and end of their context, so this placement improves answer quality.
+
+### 6. Chronological Context Grouping
+
+Organize retrieved context by time period before sending to the LLM:
+
+```
+=== March 2025 Reports ===
+[Goldman Sachs] Section: Performance > Equities...
+[JPMorgan] Risk Analysis...
+
+=== February 2025 Reports ===
+[Citi] Market Commentary...
+```
+
+This helps the LLM understand temporal relationships and produce better-structured answers.
+
+---
+
+## 🚀 Moonshot Features
+
+These are ambitious features that require significant engineering effort but could dramatically improve the system:
+
+### 1. Multi-Variant Answer Generation
+
+Generate multiple answer variants in parallel with different synthesis strategies:
+- **Variant 1**: Direct & Concise (temperature: 0.3)
+- **Variant 2**: Comprehensive & Analytical (temperature: 0.5)
+- **Variant 3**: Timeline & Evolution (temperature: 0.4)
+
+**Considerations**:
+- Increases API costs 3x
+- Only valuable if users have diverse preferences
+- **Recommendation**: Start with single best answer, add variants later based on user feedback
+
+### 2. Preference Learning System
+
+Build a continuous learning pipeline using user preferences:
+- Log which answers users prefer (explicit selection)
+- Track implicit signals (copy events, dwell time, follow-up queries)
+- Fine-tune cross-encoder on preferences (100+ samples)
+- Fine-tune embeddings on corpus (500+ samples)  
+- DPO (Direct Preference Optimization) on synthesis (1000+ samples)
+
+**Considerations**:
+- Requires 6-month timeline to see value
+- Needs ML engineering expertise
+- **Recommendation**: Log preferences from day one, but defer building the training pipeline until sufficient data is collected
