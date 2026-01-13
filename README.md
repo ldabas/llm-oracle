@@ -239,6 +239,99 @@ For enterprise deployments or fully on-premises setups, LLM Oracle supports an a
 | Setup complexity | Low | Medium |
 | Enterprise approval | May require GCP approval | Uses existing infra |
 
+### ⚠️ Important: What You Need to Build
+
+**Vertex AI Search** is an all-in-one solution—upload PDFs and it handles everything automatically.
+
+**Weaviate** is just a vector database. You must build a document processing pipeline:
+
+| Component | Vertex AI Search | Weaviate | What It Does |
+|-----------|------------------|----------|--------------|
+| PDF Parsing | ✅ Included | ❌ **You build** | Extract text from PDF files |
+| Table Extraction | ✅ Included | ❌ **You build** | Parse tables with headers |
+| Text Chunking | ✅ Included | ❌ **You build** | Split into ~500 token chunks |
+| Embedding Generation | ✅ Included | ✅ Built-in module | Convert text → vectors |
+| Vector Storage | ✅ Included | ✅ Core feature | Store embeddings |
+| Search/Retrieval | ✅ Included | ✅ Core feature | Query the database |
+
+#### Recommended Tools for Document Pipeline
+
+```
+PDF Files
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  PDF Parsing (choose one)                                    │
+│  • unstructured  - Best for complex layouts & tables         │
+│  • pdfplumber    - Good table extraction                     │
+│  • pypdf         - Basic text extraction                     │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Text Chunking                                               │
+│  • langchain.text_splitter.RecursiveCharacterTextSplitter   │
+│  • Custom logic for preserving section headers               │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Weaviate (handles embeddings + storage + search)           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Estimated Additional Work
+
+| Task | Effort | Dependencies |
+|------|--------|--------------|
+| PDF parsing integration | 4-6 hours | `unstructured` or `pdfplumber` |
+| Chunking with metadata | 2-3 hours | Custom code |
+| Weaviate indexing script | 2-3 hours | `weaviate-client` |
+| **Total** | **8-12 hours** | |
+
+#### Minimal Ingestion Example
+
+```python
+# ingest_documents.py - You'll need to create something like this
+
+from unstructured.partition.pdf import partition_pdf
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+import weaviate
+from datetime import datetime
+
+def ingest_pdf(pdf_path: str, client: weaviate.Client):
+    """Process a PDF and index to Weaviate"""
+    
+    # 1. Parse PDF (extracts text, tables, structure)
+    elements = partition_pdf(pdf_path)
+    text = "\n".join([el.text for el in elements if el.text])
+    
+    # 2. Chunk into smaller pieces
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500, 
+        chunk_overlap=50
+    )
+    chunks = splitter.split_text(text)
+    
+    # 3. Index to Weaviate (embeddings auto-generated)
+    for i, chunk in enumerate(chunks):
+        client.data_object.create(
+            class_name="Document",
+            data_object={
+                "content": chunk,
+                "source": pdf_path,
+                "created_at": datetime.now().isoformat(),
+                "chunk_index": i
+            }
+        )
+    
+    print(f"✅ Indexed {len(chunks)} chunks from {pdf_path}")
+
+# Usage
+client = weaviate.Client("http://localhost:8080")
+ingest_pdf("./reports/Q1_2025_report.pdf", client)
+```
+
 ### Architecture: Self-Hosted Mode
 
 ```
